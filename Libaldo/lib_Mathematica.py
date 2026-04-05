@@ -1,20 +1,80 @@
 from sympy import *
-from latex2sympy2 import latex2sympy
+ 
 from functools import reduce
 import matplotlib.pyplot as plt
+from math import sqrt 
 import sys
 
 from IPython.display import Math  # ,display 
  
 import re
- 
-# VARIABLE 
-t,a,b,c,d,x,y,z,w,i,j,k,alpha,v,u=symbols('t a b c d x y z w i j k alpha v u')
-AA=symbols('AA')
+from lib_Mathbasic import *  
+
 ########################################## 
 #   Variable Crea Transforma
 ##########################################
-def positiveSymbols(*args):
+from IPython.display import Image
+from IPython.display import display, HTML
+from IPython.display import clear_output
+import time
+ 
+ 
+from sympy.printing.latex import LatexPrinter
+
+class FreezePrinter(LatexPrinter):
+
+    def _print_Add(self, expr):
+
+        pos=[]
+        neg=[]
+
+        for a in expr.args:
+            if a.could_extract_minus_sign():
+                neg.append(-a)
+            else:
+                pos.append(a)
+
+        ordered = pos + [-n for n in neg]
+
+        expr2 = Add(*ordered, evaluate=False)
+
+        return super()._print_Add(expr2)
+
+
+def latex_freeze(expr):
+    return FreezePrinter({'order':'none'}).doprint(expr)
+def freezedisplay(expr):
+    return FreezePrinter({'order':'none'}).doprint(expr)
+
+
+def clearcell(*args):
+    """Función mejorada para visualización en bucles"""
+    if len(args) == 1:
+        # Mostrar el gráfico durante el tiempo especificado
+        
+        time.sleep(args[0])
+        clear_output(wait=True)
+    else:
+        # Limpiar inmediatamente
+        clear_output(wait=True) 
+                    
+def getdatah(sfunc):
+    desc1=dfh[dfh['Name']==sfunc]['desc'].item()
+ 
+    vecs=[]
+    campos=['data1','data2','data3','data4','data5','data6']
+    for data in campos:
+        kres=desc=dfh[dfh['Name']==sfunc][data].item()
+        if kres!=' ':
+            vecs.append(kres)
+    return [sfunc]+vecs,desc1 
+    
+    
+def seehelp(sfunc):
+    data1,desc1=getdatah(sfunc)
+    displayhelp(*data1,desc=desc1) 
+    
+def positivesymbols(*args):
     kres=[]
     sexpr=''
     for data in args:
@@ -22,7 +82,12 @@ def positiveSymbols(*args):
         
     return symbols(sexpr,positive=True)
     
-
+def sumdigit(sexpr):
+    kres = 0
+    sexpr=str(sexpr)
+    for data in sexpr:
+        kres += int(data)
+    return kres
 def cleanvar(*args):
     mm=[]
     for i in args:
@@ -31,7 +96,21 @@ def cleanvar(*args):
         return mm[0]
     else:    
         return mm 
-
+def strpar(expr,op=False):
+    sexpr=str(expr)
+    if Is_Add(expr):
+        if sexpr[0]=='(' and sexpr[-1]==')':
+            pass
+        else:
+            sexpr='('+sexpr+')'
+    else:
+        if op:
+            if sexpr[0]=='(' and sexpr[-1]==')':
+                pass
+            else:
+                sexpr='('+sexpr+')'
+            
+    return sexpr
 def clearvar(*args):
     mm=[]
     for i in args:
@@ -49,10 +128,8 @@ def diffvar(*args): #crea variables dieferenciables
             return mm[0]
         else:
             return mm
-vecvars=[x,y,z,w,v,u]
-dx,dy,dz,dw,dv,du=symbols('d_x d_y d_z d_w d_v d_u')            
-vecvard=[dx,dy,dz,dw,dv,du]
-def symboldiff(*args):
+ 
+def symbolsdiff(*args):
     kres=[]
     for data in args:
         kres.append(symbols('d_'+str(data)))
@@ -60,7 +137,27 @@ def symboldiff(*args):
         return kres[0]
     else:
         return kres
-           
+theta=symbols('theta')        
+def dotvar(var,*args):
+    if len(args)==1 and args[0]==2:
+        if var==alpha:
+            svar=symbols(r'\ddot{\\alpha}')
+        elif var==theta:    
+            svar=symbols(r'\ddot{\\theta}')
+        elif var==beta:    
+            svar=symbols(r'\ddot{\\beta}') 
+        else:
+            svar=symbols('\ddot{'+str(var)+'}')
+    else:
+        if var==alpha:
+            svar=symbols(r'\dot{\\alpha}')
+        elif var==theta:    
+            svar=symbols(r'\dot{\\theta}')
+        elif var==beta:    
+            svar=symbols(r'\dot{\\beta}') 
+        else:
+            svar=symbols('\dot{'+str(var)+'}')
+    return svar           
 def c2c(kval):
     if Is_Number(kval) and type(kval)==float and (kval-int(kval))==0:
         return int(kval)
@@ -94,29 +191,46 @@ def antiprimitiva(ksym): # input symbols 'v(t)'  return symbols 'v'
     else:
         return ksym
         
-        
-
-    
-    
 def unisymbols(ksym):   
     '''
     unisymbols() :  this function homegenize diferent variables whit 
-                    the same symbolic name in omly one in all symbols expresion
+                    the same symbolsic name in omly one in all symbols expresion
     '''                         
     if type(ksym)==list:
         return [unisymbols(i) for i in ksym]
     else:    
     
         try:
-            kres=parse_expr(str(ksym))
+            kres=parse_expr(str(ksym),evaluate=False)
         except:
             kres=ksym
-        return(kres)
+        return(kres)        
+
     
+    
+
+def renewvar(expr,vecv):
+    expr=parse_expr(str(expr))
+    svar = [str(data) for data in vecv]
+    L=list(expr.free_symbols)
+    for data in L:
+        try:
+            var=vecv[svar.index(str(data))]
+            expr=expr.subs(data,var)
+        except:
+           pass    
+    return expr 
+    
+def makepositive(*args):
+    svar=''
+    vvec=[]
+    for data in args:
+        vvec.append(symbols(str(data),positive=True,real=True,nonzero=True))
+    return vvec    
 def sydem(ksym):
     
     '''
-    sydem() :   symbol-idem 
+    sydem() :   symbols-idem 
                 try to return the original function 
                 with out auto math transformathis  
     '''
@@ -127,18 +241,21 @@ def sym2func(nval,ksym):
     '''
     sym2func()
     -----------------------    
-    input  : nval = symbolic name function
+    input  : nval = symbolsic name function
              ksym = posible dependient variable    
     return : nval function
     '''    
     return convFunc(nval,ksym)    
     
-def convFunc(nval,ksym): # symbol to Function args=(symbols, var2)
+def convFunc(nval,ksym): # symbols to Function args=(symbols, var2)
     newF=Function(nval)(ksym) 
     return newF
     
 def sym2func(nval,ksym):
     return convFunc(nval,ksym)
+    
+    
+ 
     
 def primitivename(ksym):
     kres=ksym
@@ -174,7 +291,7 @@ def sym2Function(*args):  # symbols vector to Function vector *args=(symbols,sym
         mm.append(convFunc(i,vt))
     return mm
 
-def symboldiff(*args):
+def symbolsdiff(*args):
     if len(args)==1:
         svar=str(args[0])
         dsvar=svar+"'"
@@ -182,10 +299,10 @@ def symboldiff(*args):
     else:
         mm=[]
         for i in args:
-            mm.append(symboldiff(i))
+            mm.append(symbolsdiff(i))
         return mm
     
-def symboldiff2(*args):
+def symbolsdiff2(*args):
     if len(args)==1:
         svar=str(args[0])
         dsvar=svar+"''"
@@ -193,12 +310,49 @@ def symboldiff2(*args):
     else:
         mm=[]
         for i in args:
-            mm.append(symboldiff2(i))
+            mm.append(symbolsdiff2(i))
         return mm 
+
+def parseclean(sexpr):
+    if not ' ' in sexpr and sexpr[0:2]=='1*':
+        sexpr=sexpr[2::]  
+    return sexpr
+def getstrnumden(sexpr):
+    p=sexpr.find('/')
+    p1=sexpr[0:p]
+    p2=sexpr[p+1::]
+    return p1,p2
+
+
+def scos(angle):
+    sexpr='cos('+str(angle)+')'
+    return parse_expr(sexpr,evaluate=False)
+
+def ssin(angle):
+    sexpr='sin('+str(angle)+')'
+    return parse_expr(sexpr,evaluate=False)        
 #################################
 #   create list variables
 #################################
 
+
+
+
+
+
+
+
+def ssubtract(p1, p2):
+    """
+    Subtracts two symbolsic expressions.
+    
+    Parameters:
+    p1, p2: symbolsic expressions or numbers.
+    
+    Returns:
+    The difference of p1 and p2 as a symbolsic expression.
+    """
+    return p1 - p2  # Directly use symbolsic subtraction   
 def replacestrinvec(vec,val1,val2):
     '''
     vec=['1','2','3','4','5']
@@ -254,59 +408,103 @@ def rfrac(val):
     p1=val
     p2=10**len(str(p1))
     return cfrac(p1,p2)
-    
+def cf(*args):
+    return cfrac(*args)
 def cfrac(*args):
-    ops=['noeval']
-    p1=''
-    p2=''
-    for data in args:
-        if not data in ops:
-            if p1=='':
-                p1=data
-            else:
-                p2=data
-    if p2=='':
-        p2=p1
-        p1=1
-    if not Is_Number(p1) or not Is_Number(p2):
-        return p1/p2
-        
-        
-    if 'noeval' in args:     
-        kres=parse_expr("S('"+str(p1)+"/"+str(p2)+"')",evaluate=False)
-        if type(kres)==Mul:
-            vec=list(kres.args)
-            qq=vec.count(1)
-            for i in range(qq):
-                vec.remove(1)
-            if len(vec)==1:
-                kres=vec[0]
-            else:
-                kres=vec[0]
-                for i in range(1,len(vec)):
-                    kres=kres*vec[i]
-        return kres        
-    else:             
-        return parse_expr("S('"+str(p1)+"/"+str(p2)+"')",evaluate=False)
-    
-    
-def frs(k1,k2): # return   S('k1/k2')
-    
-    if Is_Number(k1) and Is_Number(k2):
-        return Rational(k1, k2)
-    else:    
-        return sydem(k1/k2)
+    n = len(args)
 
-#  sqrs() *****************
+    if n == 1:
+        a = args[0]
+        if isinstance(a, int):
+            return Integer(a)
+        return sympify(a)
 
-def rpow(*args):
-    kval=args[0]
-    if len(args)==1:
-        kres= sqrt(kval)
+    if n == 2:
+        a, b = args
+
+        # si ambos son enteros → Rational exacto
+        if isinstance(a, int) and isinstance(b, int):
+            return Rational(a, b)
+
+        # cualquier otro caso → simbólico exacto
+        return sympify(a) / sympify(b)
+        
+import re
+def strFloat(expr):
+    sexpr=str(expr)
+    L = re.findall(r'\d*\.\d+', sexpr)
+    for data in L:
+        sexpr=sexpr.replace(data,'Float('+data+')')
+    return parse_expr(sexpr)
+
+ 
+
+def eQfloat2frac(expr, max_den=1000):
+    """
+    Convierte floats en fracciones exactas.
+    Para decimales periódicos clásicos (0.333..., 0.666..., 0.25, etc.) 
+    aproxima automáticamente a la fracción exacta.
+    
+    max_den: máximo denominador permitido en la aproximación.
+    """
+    expr=strFloat(expr)
+    if isinstance(expr, Symbol):
+        return expr
+    elif isinstance(expr, Add):
+        return sum(eQfloat2frac(arg, max_den) for arg in expr.args)
+    elif isinstance(expr, Mul):
+        result = eQfloat2frac(expr.args[0], max_den)
+        for arg in expr.args[1:]:
+            result *= eQfloat2frac(arg, max_den)
+        return result
+    elif isinstance(expr, Pow):
+        return eQfloat2frac(expr.base, max_den) ** eQfloat2frac(expr.exp, max_den)
+    elif isinstance(expr, Number):
+        if isinstance(expr, Float):
+            # convertimos a fracción aproximada con denominador limitado
+            return Rational(str(expr)).limit_denominator(max_den)
+        else:
+            return expr
     else:
-        rr=args[1]
-        kres= ppow(kval,cfrac(1,rr))
-    return kres
+        return expr
+ 
+ 
+#  sqrs() *****************
+A53=atan(cfrac(4,3)) # ang 53 = atan(4/3)
+A37=atan(cfrac(3,4)) # ang 37 = atan(3/4)
+
+S53=cfrac(4,5) # ang 53
+C53=cfrac(3,5)
+T53=cfrac(4,3)
+
+S37=cfrac(3,5) # ang 37
+C37=cfrac(4,5)
+T37=cfrac(3,4)
+
+S45= sqrt(2)/2 # ang 45
+C45=sqrt(2)/2
+T45=1
+
+S30=cfrac(1,2) # ang 30
+C30=sqrt(3)/2
+T30=sqrt(3)/3
+ 
+S60=sqrt(3)/2 # ang 60
+C60=cfrac(1,2)   
+T60=sqrt(3)
+def rpow(*args):
+    desc='Return root  math of expr if include three args include pow of last args'
+    vechelp=['rpow','x','x,2','x,6','x,y','x,y,z']
+    if len(args)==0:
+        displayhelp(*vechelp,desc=desc)
+    else:    
+        kval=args[0]
+        if len(args)==1:
+            kres= sqrt(kval)
+        else:
+            rr=args[1]
+            kres= ppow(kval,cfrac(1,rr))
+        return kres
   
     
 def sqrs(k1,k2='',k3=1): # return pow(k1,S('k2'))
@@ -336,11 +534,16 @@ def sqrs(k1,k2='',k3=1): # return pow(k1,S('k2'))
 
 #  ppow() ***************** 
 def ppow(*args):
+    desc='Return root  math of expr if include three args include pow of last args'
+    vechelp='rpow','x','x,2','x,6','x,y','x,y,z'
     if len(args)==0:
-        helplib('ppow')
-        return
- 
-    return kpow(*args)
+        displayhelp(*vechelp,desc=desc)
+    else:    
+        if len(args)==0:
+            helplib('ppow')
+            return
+     
+        return kpow(*args)
     
 def kpow(*args): 
     '''
@@ -376,7 +579,18 @@ def simplifysum(obj):
         return parse_expr(kres,evaluate=False)
     else:
         return obj
-
+def secsimplify(expr):
+    kres=expr
+    mm=expr.args
+    if Is_Add(kres):
+        ksum=0
+        for data in mm:
+            ksum=ksum+simplify(data)
+        return ksum
+    elif Is_Mul(kres):
+        return simplify(kres)
+    else :
+        return expr
 def simplifymul(obj):
     if type(obj)==Mul:
         kres=''
@@ -433,9 +647,31 @@ def sex2rad_i(kang,s='r'):
     if s=='s':
         kang=sex2rad(kang)
     return(kang)
+    
 
+
+def rad2rpm(kvel):
+    return(kvel*30/pi)
+    
+def reducevueltas(expr):
+    if Is_Number(expr):
+        if expr<0:
+            kres=reducevueltas(-1*expr)
+            return -1*kres
+        else:    
+            p1=numer(expr)/pi
+            p2=denom(expr)
+            fact=2*p2
+            kres=p1%p2
+            if kres==1:
+                return pi/p2
+            else:
+                return pi*kres/p2
+    else:
+        return expr
+    
 #  killabs() ***************** 
-def kilabs(ksym):
+def killabs(ksym):
     if ksym=='':
         helplib('killabs')
         return
@@ -461,6 +697,11 @@ def makepos(kres):
     
     
 def signo(ksym):
+    if type(ksym)==Mul and ksym.args[0]==-1:
+        return -1
+    if type(ksym)==Mul:
+        if (str(ksym.args[0]))[0]=='-':
+            return -1    
     if ksym=='':
         helplib('signo')
         return
@@ -510,7 +751,16 @@ def insideroot(ksym=''):
         return
     
     return get_inside_root(ksym=1*ksym)
-    
+def setinsideroot(obj,expr,evaluate=True):
+    if Is_Root(obj):
+        sobj=str(obj)
+        sinr=str(insideroot(obj))
+        sexpr=str(expr)
+        sobj=sobj.replace(sinr,'('+sexpr+')')
+        if evaluate:
+            return parse_expr(sobj)
+        else:
+            return parse_expr(sobj,evaluate=False)    
 def get_inside_root(ksym):
     kres=ksym 
     if Is_Root(kres): 
@@ -626,7 +876,26 @@ def get_dif2(a,b,kope=''):
     kres=opemat(kres,kope=kope)
     return kres
  
+def pow10(bb,ee):
+    return bb*10**ee
+    
+def area3side(a,b,c):
+    s=(a+b+c)/2
+    A=rpow(s*(s-a)*(s-b)*(s-c),2)
+    return A
 
+def modulopoint(p1,p2=''):
+    
+    qq=len(p1)
+    kres=0
+    if p2=='':
+        p2=(0,0,0)
+    for i in range(qq):
+        x1=p1[i]
+        x2=p2[i]
+        kres=kres+(x2-x1)**2
+    return rpow(kres,2)     
+    
 #####################
 #   SOLVE
 #####################
@@ -709,6 +978,27 @@ def tsimplify(kres):
     if kres=='':
         helplib('tsimpify')
         return
+    sexpr=str(kres)
+    if 'atan(tan(' in sexpr:
+        kval=mathinsidepar(kres,'atan(tan(')
+        skval='atan(tan('+str(kval)+'))'
+        nskval='('+str(kval)+')'
+        sexpr=sexpr.replace(skval,nskval)
+        kres=parse_expr(sexpr)
+    sexpr=str(kres)
+    if 'asin(sin(' in sexpr:
+        kval=mathinsidepar(kres,'asin(sin(')
+        skval='asin(sin('+str(kval)+'))'
+        nskval='('+str(kval)+')'
+        sexpr=sexpr.replace(skval,nskval)
+        kres=parse_expr(sexpr)
+    sexpr=str(kres)
+    if 'acos(cos(' in sexpr:
+        kval=mathinsidepar(kres,'acos(cos(')
+        skval='acos(cos('+str(kval)+'))'
+        nskval='('+str(kval)+')'
+        sexpr=sexpr.replace(skval,nskval)
+        kres=parse_expr(sexpr)
     return trigsimp(kres)
 
 
@@ -733,7 +1023,9 @@ def subsubs(*args,force=False):
             kres=parse_expr(sres)
             return kres
         except:
-            return expr    
+            return expr 
+
+
         
 def texpand(kres):
     if kres=='':
@@ -890,7 +1182,7 @@ def opemat(ksym,kope=''):
             if Is_Poly(kres):
                 kres=kill_root_poly(kres)
         if i=='N':
-            if Is_Number(kres) and not Is_Symbol(kres):
+            if Is_Number(kres) and not Is_symbols(kres):
                 kres=float(kres)
             kres=N(kres)
             
@@ -1023,7 +1315,7 @@ def fpoly(ksym,kopt='',op2='',op3=''):
         if type(ksym)==int or type(ksym)==float:
             kres=0
             done=True
-        elif type(ksym)==Symbol:
+        elif type(ksym)==symbols:
             kres=1
             done=True
             
@@ -1035,7 +1327,7 @@ def fpoly(ksym,kopt='',op2='',op3=''):
         if type(ksym)==int or type(ksym)==float:
             kres=[]
             done=True
-        elif type(ksym)==Symbol:
+        elif type(ksym)==symbols:
              
             mm=[]
             mm.append(ksym)
@@ -1233,6 +1525,17 @@ def fpoly(ksym,kopt='',op2='',op3=''):
     return(kres)
    
 # # factorizar Polinomios lineales
+def allargs(expr, max_depth=4):
+    def find_paths(expr, path, depth):
+        paths = []
+        if depth < max_depth and hasattr(expr, 'args') and expr.args:
+            for i in range(len(expr.args)):
+                new_path = path + (i,)
+                paths.append(new_path)
+                paths.extend(find_paths(expr.args[i], new_path, depth + 1))
+        return paths
+    
+    return find_paths(expr, (), 0)
 def getargs(kres,*args):
     if kres=='':
         helplib('getargs')
@@ -1270,31 +1573,68 @@ def get_rest(eqq,kx):
         except:
             pass
     return kres 
+ 
+def denoexpand(expr):
+    p1 = numer(expr,exact=True)
+    p2 = denom(expr,exact=True)
+    p2=expand(p2)
+    if p1==1:
+        return p2**-1
+    elif p1==-1:
+        return (-p2)**-1
+    else:
+        return cfrac(p1,p2)
+    
 def numerexpand(expr):
-    p1,p2=fraction(expr)
+    p1 = numer(expr,exact=True)
+    p2 = denom(expr,exact=True)
     p1=expand(p1)
     return cfrac(p1,p2)
-def numerfactor(expr):
-    p1,p2=fraction(expr)
-    p1=factor(p1)
-    return cfrac(p1,p2)    
-def numersimplify(expr):
-    p1,p2=fraction(expr)
-    p1=simplify(p1)
-    return cfrac(p1,p2)    
-def denoexpand(expr):
-    p1,p2=fraction(expr)
-    p2=expand(p2)
-    return cfrac(p1,p2)
+    
 def denofactor(expr):
-    p1,p2=fraction(expr)
-    p2=factor(p2)
-    return cfrac(p1,p2)    
-def denosimplify(expr):
-    p1,p2=fraction(expr)
-    p2=simplify(p2)
-    return cfrac(p1,p2) 
+    num, den = fraction(expr)
 
+    if den == 1:
+        return expr
+
+    den = factor(den)
+
+    if num == 1:
+        return 1/den
+    else:
+        return num/den
+    
+def numerfactor(expr):
+    num, den = fraction(expr)
+
+    if num == 1:
+        return expr
+
+    num = factor(num)
+
+    if den == 1:
+        return num
+    else:
+        return num/den    
+
+def denosimplify(expr):
+    p1 = numer(expr,exact=True)
+    p2 = denom(expr,exact=True)
+    p2=simplify(p2)
+    return cfrac(p1,p2)
+    
+def numersimplify(expr):
+    p1 = numer(expr,exact=True)
+    p2 = denom(expr,exact=True)
+    p1=simplify(p1)
+    return cfrac(p1,p2)
+    
+    
+def simplifybutlock(expr,slock):
+    AA=symbols('AA')
+    expr=expr.subs(slock,AA)
+    nexpr=simplify(expr)
+    return nexpr.subs(AA,slock) 
     
 def factorize(expr,fexpr):
     return factors(expr,fexpr) 
@@ -1337,76 +1677,123 @@ def factors(expr,kfac):
         return rpow(bb,ee)    
     else:
         return expr
-
-def efactor(*args,expand=True):
-    if len(args)==1:
-        return factor(args[0])
-    if len(args)==2:
-        kres=args[0].subs(args[1],factor(args[1]))
-        return kres
-    if len(args)==3:
-        kfactor=factorize(args[1],args[2])
-        return args[0].subs(args[1],kfactor)
-        
-def factoriza(expr,*args):
-    kres=expr
-    for i in args:
-        kres=factoriza2(kres,i)
-    return kres    
-        
-def factoriza2(expr,fexpr):
-    if Is_Add(expr):
-        return factorize(expr,fexpr)
-    elif Is_Div(expr):
-        knum,kden=fraction(expr)
-        p1=factorize(knum,fexpr)
-        p2=factorize(kden,fexpr)
-        return p1/p2
-    elif Is_Pow(expr):
-        bb=getbase(expr)
-        ee=getexpo(expr)
-        bb2=factorize(bb,fexpr)
-        return bb2**ee
-    elif Is_Mul(expr):
-        if  '+' in str(expr):
-            kres=1
-            for i in expr.args:
-                kres=kres*factorize(i,fexpr)
-            return kres
-        else:
-            return expr
-    else:
-        return expr     
-def dfactor(expr,var,var1,op=''):
+def onemul(expr,fexpr):
     '''
-    input diff expr( dx/dt then var=t, var1=x
-    op= like factorize 
-        dD2=diff(x,t,t)
-        dD1=diff(x,t)
-        dD=x(t)
+        example
+        expr=(1+a)/(a-b),
+        you want (1+a)*(a+b)/(a*a-b*b).. 
+        and expr*(a+b)/(a+b) return expr..
+        but onemul(expr,a+b).. return (1+a)*(a+b)/(a*a-b*b)
+     '''   
+    p1=numer(expr)*fexpr
+    p2=denom(expr)*fexpr
+    return sdiv(p1,p2)
+def numesubs(expr,oldex,newex):
+    '''
+    applied sub only in numerator
+    '''
+
+    p1=numer(expr) 
+    p2=denom(expr) 
+    p1=p1.subs(oldex,newex)
+    return sdiv(p1,p2)
+def denosubs(expr,oldex,newex):
+    '''
+    applied subs only in denominator
+    '''
+    p1=numer(expr) 
+    p2=denom(expr) 
+    p2=p2.subs(oldex,newex)
+    return sdiv(p1,p2) 
+def divexpand(expr):
+    '''
+    p1=applied expand  in expr numerator 
+    and 
+    p2=applied expand  in expr denominator
+    retur p1/p2 whitout evaluate
     
     '''
-    Da2,Da1,Da=simplediff(var,var1)
-    sexpr=str(expr)
-    sD2=str(Da2)
-    sD1=str(Da1)
-    sD=str(Da)
-    sexp=str(expr)
-    sexp=sexp.replace(sD2,'dD2')
-    sexp=sexp.replace(sD1,'dD1')
-    sexp=sexp.replace(sD,'dD')
-    dD2,dD1,dD=symbols('dD2 dD1 dD')
-    exp2=parse_expr(sexp)
-    if op!='':
-        mode=parse_expr(op)
-        exp2=factorize(exp2,mode)
-    else:
-        exp2=factor(exp2)
+    p1=expand(numer(expr))
+    p2=expand(denom(expr))
+    return sdiv(p1,p2)
+def divfactor(expr):
+    '''
+    factor in numer and factor in denom from expr and down idem whitout total evaluate
+    '''
+    p1=factor(numer(expr))
+    p2=factor(denom(expr))
+    if Is_Mul(p1) and Is_Mul(p2):
+        vecf=[]
+        m1=p1.args
+        m2=p2.args
+        for data in m2:
+            if data in m1:
+                vecf.append(data)
+        if len(vecf)>0:
+            P1=1
+            P2=1
+            for data in m1:
+                if not data in vecf:
+                    P1=P1*data
+            for data in m2:
+                if not data in vecf:
+                    P2=P2*data
+            return sdiv(P1,P2)
+        else:
+            return sdiv(p1,p2)
+    else:        
+        return sdiv(p1,p2) 
+
+def infactor(expr, xfac):
+    # see disfactor
+    return disfactor(expr, xfac)
+def disfactor(expr, xfac):
+    """
+    Factoriza una expresión 'expr' extrayendo 'xfac' como factor común en los términos que lo contienen,
+    dejando el resto de términos sin modificar. Ideal para factorizaciones parciales o anidadas.
+
+    Parámetros:
+        expr (sympy.Expr): Expresión a factorizar (debe ser una suma de términos).
+        xfac (sympy.Expr): Factor común a extraer (ej: x, y, x**2, etc.).
+
+    Devuelve:
+        sympy.Expr: Expresión factorizada con 'xfac' extraído donde sea posible.
+
+    Ejemplos:
+        >>> from sympy.abc import x, y, z
+        >>> P = 6*x**2*y**2 + 5*x**2 + 3*x*y**2 + 5*x*z + 6*y*z - 3*y
+        >>> disfactor(P, x**2)
+        6*x**2*y**2 + 5*x**2 + 3*x*y**2 + 5*x*z + 6*y*z - 3*y  # (Factoriza x**2)
+        >>> disfactor(disfactor(P, x**2), y)
+        x**2*(6*y**2 + 5) + 5*x*z + y*(3*x*y + 6*z - 3)
+
+    Nota:
+        - Usa simplify(data/xfac) para detectar factores.
+        - Evita fracciones no deseadas verificando denom(kres) == denom(data).
+    """
+    vec1 = []
+    vec2 = []
+    if Is_Add(expr):
+        for data in expr.args:
+            kres = simplify(data / xfac)
+            if kres != data and denom(kres) == denom(data):
+                vec1.append(kres)
+            else:
+                vec2.append(data)
+        return xfac * Add(*vec1) + Add(*vec2)
+    elif Is_Div(expr):
+        return cf(disfactor(numer(expr), xfac),disfactor(denom(expr), xfac))    
         
-    exp2=exp2.subs(dD2,Da2)
-    exp2=exp2.subs(dD1,Da1)
-    exp2=exp2.subs(dD,Da)
-    return(exp2)
+    elif Is_Mul(expr):
+        vec=[]
+        for data in expr.args:
+            if Is_Add(data):
+                vec.append(disfactor(data, xfac))
+            else:    
+                vec.append(data)   
+        return prod(vec) 
+    else:
+        return expr    
 
 def dsimplify(expr,var,var1):
     '''
@@ -1446,6 +1833,39 @@ def factorSec(kEq,ksym,kfiltro='.'):
 def grupFac(kEq,ksym,kfiltro='.'):
     return My_factor(kEq=kEq,ksym=ksym,kfiltro=kfiltro)
 
+def Factor(expr):
+    if type(expr)==Add:
+        return factor(expr)
+    elif Is_Div(expr):
+        return Sdiv(Factor(numer(expr)),Factor(denom(expr)))    
+    elif type(expr)==Mul:
+        kres=1
+        for data in expr.args:
+            if Is_Pow(data) or Is_Root(data):
+                if kres==1:
+                    kres=Factor(data)
+                else:
+                    kres=kres*Factor(data)
+            else:
+                if kres==1:
+                    kres=factor(data)
+                else:
+                    kres=kres*factor(data)
+        return kres        
+            
+ 
+    elif Is_Pow(expr):
+        ee=getexpo(expr)
+        bb=getbase(expr)
+        return Spow(Factor(bb),ee)
+
+    elif Is_Root(expr):
+ 
+        return Spow(Factor(bb),rr)
+ 
+    
+    else:
+        return expr
 
 def part(expr,address):
     r"""
@@ -1493,14 +1913,14 @@ def cpart(expr,address):
     r"""
     makes easier to visualize walking the tree. It returns a set of two expressions:
     the original expression with the part located by 'address' substituted
-    by the symbol 'PIECE' and the part requested.
+    by the symbols 'PIECE' and the part requested.
     """
-    PART = Symbol(r'{\color{red}{PART}}')
+    PART = symbols(r'{\color{red}{PART}}')
     return Set(inpart(expr,PART,address),part(expr,address))  
 
 def kreturn(ksym):
     unisymbols(ksym)
-    
+   
 
 #####################
 #   Differential
@@ -1550,8 +1970,8 @@ def psimplify(ksym,op1='',op2='',kope=''):
 #####################
 def typedata(ksym):  # typedata((x*x*5)/8) return
     kres=' '
-    if Is_Symbol(ksym):
-        kres+='Symbol, '
+    if Is_symbols(ksym):
+        kres+='symbols, '
     if Is_Number(ksym):
         kres+='Number, '
     if Is_Add(ksym):
@@ -1593,7 +2013,7 @@ def allType(ksym,*args):
     if 'list' in args:
         sE([ksym])
         sE(['Is Polynomie = ',Is_Poly(ksym)]);
-        sE(['Is Symbols= ',Is_Symbol(ksym)]);
+        sE(['Is symbols= ',Is_symbols(ksym)]);
         sE(['Is Number= ',Is_Number(ksym)]);
         sE(['Is Real= ',Is_Real(ksym)]);
         sE(['Is Integer= ',Is_Integer(ksym)]);
@@ -1607,7 +2027,7 @@ def allType(ksym,*args):
         sE(['Is Root= ',Is_Root(ksym)])
     else:
         sE([ksym])
-        sE(['Is Polynomie = ',Is_Poly(ksym),' Is Symbols= ',Is_Symbol(ksym),' Is Number= ',Is_Number(ksym)]);
+        sE(['Is Polynomie = ',Is_Poly(ksym),' Is symbols= ',Is_symbols(ksym),' Is Number= ',Is_Number(ksym)]);
         sE(['Is Real= ',Is_Real(ksym),'  Is Integer= ',Is_Integer(ksym),' Is Even= ',Is_Even(ksym),' Is Odd= ',Is_Odd(ksym)]);
         sE(['Is Monomie= ',Is_Mono(ksym),'  Is Add= ',Is_Add(ksym),' Is Mul= ',Is_Mul(ksym)]);
         sE(['Is Pow=',Is_Pow(ksym),'  Is Pow2= ',Is_Pow2(ksym),' Is Root= ',Is_Root(ksym)])
@@ -1619,20 +2039,24 @@ def Is_Poly(ksym):
         done=False
     
     return done  
-    
-def Is_Symbol(expr):
+def Is_Numbersymbols(expr):
+    if Is_Mul(expr) and len(expr.args)==2 and Is_Number(expr.args[0]):
+        return True
+    else:
+        return False    
+def Is_symbols(expr):
     done=False
     try:
-        done=ask((expr).is_Symbol)
+        done=ask((expr).is_symbols)
         return done
     except:
         return done
 
     
-def Is_notSymbol(ksym):
+def Is_notsymbols(ksym):
     done=False
     try:
-        done=ask((expr).is_Symbol)
+        done=ask((expr).is_symbols)
         return not done
     except:
         return done  
@@ -1650,6 +2074,45 @@ def Is_Znumber(expr):
         return False
     return True
 
+def Is_imgDiv(expr):
+    nn=numer(expr)
+    dd=denom(expr)
+    if (type(nn)==Mul and 'i' in str(nn)) or nn==I :
+        if (type(dd)==Mul and 'i' in str(dd)) or dd==I :
+            return True
+    return False
+    
+def Is_Img(expr):
+    if 'I' in str(expr) or 'i' in str(expr):
+        return True
+    else:
+        return False    
+def Is_DivPow(expr):
+    if Is_Div(expr) and Is_nPow(numer(expr)) and Is_nPow(denom(expr)):
+        return True
+    else:
+        return False
+def Is_Number2PowNumber(a):
+    """
+    Retorna True si a se puede expresar como b**c con b, c > 1
+    """
+    if a < 4:  # 1, 2, 3 no son potencias perfectas (excepto 1^c, pero c debe ser > 1)
+        return False
+    
+    # Probar todos los exponentes posibles desde 2 hasta log2(a)
+    from math import isqrt, log2
+    
+    max_exponente = int(log2(a)) + 1
+    for exponente in range(2, max_exponente + 1):
+        base = round(a ** (1/exponente))
+        if base ** exponente == a:
+            return True
+    return False
+def Is_nPow(expr):
+    if Is_Number(expr):
+        return Is_Number2PowNumber(expr)
+    else:
+        return Is_Pow(expr)   
 def Is_Nnumber(expr):
     done=True
     if expr<0:
@@ -1703,8 +2166,16 @@ def Is_PositiveAdd(expr):
 def Is_Real(ksym):
     return TrFa(sympify(ksym).is_real) 
    
-def Is_Integer(ksym):
-    return  TrFa(sympify(ksym).is_integer)
+def Is_Integer(expr):
+    if expr==0:
+        return True
+    try:
+        if expr%int(expr)==0:
+            return True
+        else:
+            return False
+    except:
+        return False
     
 def Is_Even(ksym):
     return  (sympify(ksym).is_even ) 
@@ -1720,7 +2191,7 @@ def TrFa(kval): # is True False
     
 def Is_Mono(ksym):
     ksym=expand(ksym)
-    if type(ksym)==Mul or type(ksym)==Pow or type(ksym)==Symbol:
+    if type(ksym)==Mul or type(ksym)==Pow or type(ksym)==symbols:
         return True
     try:
         kn=len(fpoly(ksym,'list0'))
@@ -1730,21 +2201,85 @@ def Is_Mono(ksym):
             return False 
     except:
         return False
-                
+def thereis_Add(expr):
+    done=False
+    mm=expr.args
+    for data in mm:
+        if Is_Add(data):
+            return True
+    return False 
+def thereis_Div(expr):
+    done=False
+    mm=expr.args
+    for data in mm:
+        if Is_Div(data):
+            return True
+    return False    
 def Is_Add(ksym):
     kres=ksym 
     if type(kres)==Add:
         return True
     else:
         return False
-    
+        
+        
 def Is_Mul(ksym):
-    kres=ksym 
-    if type(kres)==Mul:
+    if type(ksym)==Mul: 
+        return True
+    else:
+        return False 
+
+        
+def Is_MulNotDiv(ksym):
+    kres= ksym  
+    if type(kres)==Mul and denom(kres)==1:
         return True
     else:
         return False
+        
+def Is_MulPow(expr):
+        """Devuelve True si expr es un producto con al menos una potencia"""
+        return isinstance(expr, Mul) and any(isinstance(arg, Pow) for arg in expr.args)
+def Is_Square(number):
+     
+    
+    # Si es un número entero
+    if isinstance(number, int):
+        root = sqrt(number)
+        return root.is_integer
+    elif type(number)== Integer:
+        number=int(number) 
+        root = sqrt(number)
+        return root.is_integer
+    else:
+        if type(number)==Pow:
+            ee=getexpo(number)
+            if  ee%2==0:
+                return True
+            else:
+                return False
+ 
+        elif Is_Div(number):
+            if Is_Square(numer(number)) and Is_Square(denom(number)):
+                return True
+            else:
+                return False
+        elif type(number)==Mul:
+            for data in number.args:
+                if not Is_Square(data):
+                    return False
+            return True        
+  
+ 
+        else:
+            return False
+ 
 
+def Is_Cubic(expr):
+    if Is_Integer(float2int(root(expr, 3))):
+        return True
+    return False 
+        
 def Is_NMul(ksym):
     kres=ksym 
     if Is_Mul(kres):
@@ -1814,7 +2349,7 @@ def Is_Log(ksym):
     else:
         return False
 
-
+ 
 def Is_String(expr):
     if type(expr)==str:
         return True
@@ -1868,6 +2403,7 @@ def Is_Inversa(expr):
         if p1==1 or p1==-1:
             return True
     return False
+    
 def Is_Inverse(expr):
     if Is_Div(expr):
         p1,p2=fraction(expr)
@@ -1916,6 +2452,13 @@ def Is_PowSin(expr): # return True if expr = sin(alpha)**y,
             return True
         return False
     return False
+def Is_Prime(expr):
+    if not Is_Integer(expr):
+        return False
+    else:
+        expr=int(expr)
+        return isprime(expr)    
+    
 def Is_PowCos(expr): # return True if expr = cos(alpha)**y
     if Is_PowTrigFunc(expr):
         bb=getbase(expr)
@@ -1959,7 +2502,7 @@ def simplifac(p1,p2):
     p1=factor(p1)
     p2=factor(p2)
     try:
-        if (Is_Mul(p1) and  Is_Symbol(p2)) or (Is_Mul(p2) and Is_Symbol(p2)) or (Is_Mul(p2) and Is_Mul(p2)):
+        if (Is_Mul(p1) and  Is_symbols(p2)) or (Is_Mul(p2) and Is_symbols(p2)) or (Is_Mul(p2) and Is_Mul(p2)):
             mm1=fpoly(p1,'list')
             mm2=fpoly(p2,'list')
             P1=p1
@@ -2035,9 +2578,25 @@ def lexp_simplify(ksym):
         return parse_expr(sksym)
     else:
         return ksym
+    
         
-      
-        
+def onefrac(expr):
+    '''
+    onefrac(a)=1/(1/a)
+    onefrac(1/a) = 1/a
+    onefrac(a/b)=1/(b/a)
+    '''
+    if Is_Div(expr):
+        nn=numer(expr)
+        if nn==1:
+            return sdiv(1,simplify(denom(expr)))
+        dd=denom(expr)
+        if denom(simplify(dd*nn**-1))==1:
+            return sdiv(1,simplify(dd*nn**-1))
+        else:
+            return sdiv(1,dd*nn**-1)
+    else:
+        return expr 
         
 def fix_sqrt2pow(ksym):
     try:
@@ -2273,86 +2832,34 @@ def kill_root_poly(ksym,kope=''):  # kill root(pow(ksym1)) + root(pow(ksym1))   
         kres=kill_root_mono(ksym,kope='')
         return kres   
         
-'''        
-def sin2cos(ksym,angu,korden=2,kope=''):
-    e1=unisymbols(ksym)
-    e1=e1.subs(unisymbols(kpow(sin(angu),4)),(unisymbols(kpow(sin(angu),2)*kpow(sin(angu),2))))
-    e1=e1.subs(unisymbols(kpow(sin(angu),3)),(unisymbols(kpow(sin(angu),2)*sin(angu))))
-    e1=e1.subs(unisymbols(kpow(sin(angu),2)),(unisymbols(1-kpow(cos(angu),2))))
-    if korden==1:
-        e1=e1.subs(unisymbols(sin(angu)),(unisymbolsrpow(1-kpow(cos(angu),2))) )
-    
-    kres=e1 
-    kres=opemat(kres,kope=kope)
-    return kres
-'''
-def sin2cos(expr,ang=alpha):
-    if Is_Add(expr):
-        kres=0
-        for i in expr.args:
-            kres=kres+sin2cos(i,ang=ang)
-        return kres
-    elif Is_Div(expr):
-        p1,p2=fraction(expr)
-        return sin2cos(p1,ang=ang)/sin2cos(p2,ang=ang)
-    elif Is_Mul(expr):
-        kres=1
-        for i in expr.args:
-            kres=kres*sin2cos(i,ang=ang)
-        return kres
-    elif Is_PowSin(expr):
-        ee=getexpo(expr)
-        resto=ee%2
-        nee=float2int((ee-resto)/2)
-        if resto>0:
-            kres=(1-cos(ang)**2)**nee*sin(ang)
-        else:
-            kres=(1-cos(ang)**2)**nee
-        return kres
-    else:
-        return expr
 
-'''
-def cos2sin(ksym,angu,korden=2,kope=''):
-    e1=unisymbols(ksym)
-    e1=e1.subs(unisymbols(kpow(cos(angu),4)),unisymbols((kpow(cos(angu),2)*kpow(cos(angu),2))))
-    e1=e1.subs(unisymbols(kpow(cos(angu),3)),unisymbols((kpow(cos(angu),2)*cos(angu))))
-    e1=e1.subs(unisymbols(kpow(cos(angu),2)),unisymbols((1-kpow(sin(angu),2))))
-    if korden==1:
-        e1=e1.sub(unisymbols(cos(angu)),unisymbols(rpow(1-kpow(sin(angu),2))))
+def sin2cos(expr,ang):
+    return expr.subs(sin(ang),sqrt(1-cos(ang)**2))
+def cos2sin(expr,ang):
+    return expr.subs(cos(ang),sqrt(1-sin(ang)**2))
     
-    kres=e1 
-    kres=opemat(kres,kope=kope)
-    return kres    
-'''
-def cos2sin(expr,ang=alpha):
-    if Is_Add(expr):
-        kres=0
-        for i in expr.args:
-            kres=kres+cos2sin(i,ang=ang)
-        return kres
-    elif Is_Div(expr):
-        p1,p2=fraction(expr)
-        return cos2sin(p1,ang=ang)/cos2sin(p2,ang=ang)
-    elif Is_Mul(expr):
-        kres=1
-        for i in expr.args:
-            kres=kres*cos2sin(i,ang=ang)
-        return kres
-    elif Is_PowCos(expr):
-        ee=getexpo(expr)
-        resto=ee%2
-        nee=float2int((ee-resto)/2)
-        if resto>0:
-            kres=(1-sin(ang)**2)**nee*cos(ang)
-        else:
-            kres=(1-sin(ang)**2)**nee
-        return kres
-    else:
-        return expr
-def tan2sincos(expr,ang=alpha):
-    resu=str(expr.subs(tan(ang),sin(ang)/cos(ang)))
-    return parse_expr(resu,evaluate=False)
+def squaresin2cos(expr,ang):
+    return expr.subs(sin(ang)**2,1-cos(ang)**2)    
+def squarecos2sin(expr,ang):
+    return expr.subs(cos(ang)**2,1-sin(ang)**2)    
+
+def tan2sin(expr,ang):
+    return expr.subs(tan(ang),sin(ang)/cos(ang))
+def cot2sin(expr,ang):
+    return expr.subs(cot(ang),cos(ang)/sin(ang))
+
+def tan2cot(expr,ang):
+    return expr.subs(tan(ang),1/cot(ang))
+def cot2tan(expr,ang):
+    return expr.subs(cot(ang),1/tan(ang))
+    
+def sec2cos(expr,ang):
+    return expr.subs(sec(ang),1/cos(ang))
+def csc2sin(expr,ang):
+    return expr.subs(csc(ang),1/sin(ang))
+    
+    
+
     
 def MaT(x,y=''):
     if y=='':
@@ -2560,7 +3067,7 @@ def alphasubname(ksym,op=1):
 
 
 def eQrec(x1=0,y1=0,x2=0,y2=0,var2=''):
-    mm=frs((y2-y1),(x2-x1))
+    mm=cfrac((y2-y1),(x2-x1))
     bb=y2-x2*mm
     kres=opemat(var2*mm+bb,'s')
     return kres
@@ -2581,7 +3088,7 @@ def difvar(*args): #crea variables dieferenciables
 
         mm=[]
         for i in args:
-            sres='d'+diffsymbol(i)
+            sres='d'+diffsymbols(i)
         mm.append(symbols(sres))
         return mm
 
@@ -3065,8 +3572,8 @@ def diff2mark(expr,var,var1):
        
     vx=var
     vy=var1
-    dy=symboldiff(y)
-    dy2=symboldiff2(y)
+    dy=symbolsdiff(y)
+    dy2=symbolsdiff2(y)
     Y=Function(str(vy))(vx)
 
     expr=expr.subs(Y.diff(vx,vx),dy2)
@@ -3078,8 +3585,8 @@ def diff2marko(expr,var,var1):
     o=symbols(str(var1))
     vx=var
     vy=var1
-    dy=symboldiff(o)
-    dy2=symboldiff2(o)
+    dy=symbolsdiff(o)
+    dy2=symbolsdiff2(o)
     O=Function(str(vy))(vx)
 
     expr=expr.subs(O.diff(vx,vx),dy2)
@@ -3256,7 +3763,7 @@ def alphaname(ksym,op1=''):
         return '𝜇3'    
     else:
         return kk  
-vecreatr=["<class 'sympy.core.symbol.Symbol'>","<class 'int'>","<class 'float'>","<class 'sympy.core.numbers.Pi'>","<class 'sympy.core.numbers.Rational'>"]
+vecreatr=["<class 'sympy.core.symbols.symbols'>","<class 'int'>","<class 'float'>","<class 'sympy.core.numbers.Pi'>","<class 'sympy.core.numbers.Rational'>"]
 def arglist(expr,deep=3):
      
     infoexpr=[]
@@ -3468,13 +3975,8 @@ def float2int(expr):
         return kres    
     
     else:
-        sexpr=str(expr)
-        p1=sexpr.find('.')
-        sexpr2=sexpr[p1+1::]
-        sexpr3=sexpr2.replace('0','')
-        if sexpr3=='':
-            return int(expr)
-        return expr
+        expr = sympify(expr)
+        return expr if expr % 1 != 0 else int(expr)
 
 def realang2point(x1,y1,x2,y2):
     xx=x2-x1
@@ -3560,19 +4062,44 @@ def getbase(expr): # return base in expr
     expr = x**y,x*y
     return x ,x*y
     '''
-    
-    if Is_Pow(expr):
+    smm=str(expr)
+    if smm.count('**')==2 and smm[0]=='(' and smm[-1]==')' and ')**(' in smm:
+        p3=smm.find(')**(1/')
+        p1=smm.find('**')
+        p2=p1+2
+        sy=smm[p2:p3]
+        sx=smm[1:p1]
+        p4=p3+6
+        sz=smm[p4:-1]
+        ny=parse_expr(sy)
+        nz=parse_expr(sz)
+        nx=parse_expr(sx)
+        return nx
+    elif Is_Pow(expr):
         ee=expr.args[0]
         return ee
     else:
         return expr
 def getexpo(expr,op=''): #   return exponente in expr
-    if Is_Pow(expr):
+    smm=str(expr)
+    if smm.count('**')==2 and smm[0]=='(' and smm[-1]==')' and ')**(' in smm:
+        p3=smm.find(')**(1/')
+        p1=smm.find('**')
+        p2=p1+2
+        sy=smm[p2:p3]
+        sx=smm[1:p1]
+        p4=p3+6
+        sz=smm[p4:-1]
+        ny=parse_expr(sy)
+        nz=parse_expr(sz)
+        nx=parse_expr(sx)
+        return cfrac(ny,nz) 
+    elif Is_Pow(expr):
         mm=expr.args
         return mm[1]
         
     else:
-        return 1 
+        return 1
     
     
 def changesignodiv(expr):
@@ -3631,7 +4158,22 @@ def partPow(expr): # if ksym = sqrt(x**3) x,3,2 ,  if ksym= x**3, return x,3,1 ,
         ee=1
         rr=1
     return bb,ee,rr 
-
+    
+def istype(obj,ops):
+    '''
+        'add','boolean','derivative','float','function',
+        'integer','matrix','mul','number','piecewise','pow',
+        'rational','symbols','complex','even','imaginary',
+        'infinite','integer','irrational','negative','nonzero',
+        'number','odd','polar','positive','prime','rational',
+        'real','scalar','symbols','zero'
+    '''
+    L=['add','boolean','derivative','float','function','integer','matrix','mul','number','piecewise','pow','rational','symbols','complex','even','imaginary','infinite','integer','irrational','negative','nonzero','number','odd','polar','positive','prime','rational','real','scalar','symbols','zero']
+    Lf=['is_Add','is_Boolean','is_Derivative','is_Float','is_Function','is_Integer','is_Matrix','is_Mul','is_Number','is_Piecewise','is_Pow','is_Rational','is_symbols','is_complex','is_even','is_imaginary','is_infinite','is_integer','is_irrational','is_negative','is_nonzero','is_number','is_odd','is_polar','is_positive','is_prime','is_rational','is_real','is_scalar','is_symbols','is_zero']
+    k=L.index(ops)
+    p2=Lf[k]
+    sexpr=eval("sympify("+str(obj)+")."+p2)
+    return sexpr
 
 def Is_e(ksym):
     if type(ksym)==exp:
@@ -3694,3 +4236,739 @@ def expr2float(expr):
         except:
             kres=expr
         return kres    
+        
+ 
+def tolea(nde,vec):
+    L=[float(int(x*10**nde)/10**nde) for x in vec]
+    return L
+def proximangulo(valor,ndc):
+    valor=float(valor)
+    angl=[2*pi*a/24 for a in range(-24,24)]
+    sang=[float(x) for x in angl]
+    vaprox=tolea(6,sang)
+    nval=float(int(valor*10**ndc)/10**ndc)
+    try:
+        kres=angl[vaprox.index(nval)]
+        return kres
+    except:
+        return valor
+def equivalentpi(valor):
+    cc=10
+    for ndd in range(5):
+        kres=proximangulo(valor,cc-ndd)
+        if 'pi' in str(kres):
+            return kres 
+    return valor     
+    
+def noeval(sexpr):
+    return parse_expr(sexpr,evaluate=False)    
+    
+    
+ 
+
+def simplifymonomies(expr):
+    if Is_Add(expr):
+        kres=0
+        for data in expr.args:
+            kres=kres+simplifymonomies(data)
+        return kres    
+    else:        
+        mm=monofactor(expr)
+        kk=simplify(disjoinexpo(mm))
+        mm2=simplify(expr/mm)
+        return mm2*kk   
+def smartmath(*args):
+    return strmath(*args)
+    
+def strmath(*args):
+    ops=['simplify','expand','factor']
+    if len(args)==0:
+        return expr
+    
+    sexpr=args[0]
+    svar=args[1]
+     
+    nsexpr=sexpr[0]
+    done=True
+ 
+ 
+    for cc in range (1,len(sexpr)):
+        if sexpr[cc]==svar:
+            if sexpr[cc-1]=='(' or sexpr[cc-1]==' ':
+                nsexpr=nsexpr+svar
+                 
+            else:
+                nsexpr=nsexpr+'*'+svar
+                 
+        else:
+            nsexpr=nsexpr+sexpr[cc]
+             
+    nsexpr=nsexpr.replace(')(',')*(')
+    nsexpr=nsexpr.replace('^','**')        
+    kres= parse_expr(nsexpr,evaluate=False) 
+    if Is_Add(kres):
+        kres=imgsimplify(kres)
+    if 'simplify' in args:
+        kres=simplify(kres)
+    if 'expand' in args:
+        kres=expand(kres)
+    if 'factor' in args:
+        kres=factor(kres)
+    return kres
+    
+def getlatexroot(sexpr):
+    clave='\\right)^{- \\frac{1}{'
+    qq=len(clave)
+    p1=sexpr.find(clave)
+    p2=p1+qq
+    var=sexpr[p2]
+    vecvar=var
+    done=True
+    while done:
+        p2=p2+1
+        var=sexpr[p2]
+        if var=='}':
+            done=False
+        else:
+            vecvar=vecvar+var 
+    kres2=vecvar
+    p2=p1-1
+    done=True
+    clave='\\left('
+    qc=len(clave)
+    while done:
+        p2=p2-1
+        var=sexpr[p2]
+        if sexpr[p2:p2+qc]==clave:
+            done=False
+            sres=sexpr[p2+qc:p1]
+    kres1=sres
+    oldsin='\\left('+ kres1+'\\right)^{- \\frac{1}{'+kres2+'}}'
+    newsin='\\sqrt['+kres2+']{'+kres1+' }'
+    sexpr=sexpr.replace(oldsin,newsin)
+    
+    clave='\\right)^{\\frac{1}{'
+    qq=len(clave)
+    p1=sexpr.find(clave)
+    p2=p1+qq
+    var=sexpr[p2]
+    vecvar=var
+    done=True
+    while done:
+        p2=p2+1
+        var=sexpr[p2]
+        if var=='}':
+            done=False
+        else:
+            vecvar=vecvar+var 
+    kres2=vecvar
+    p2=p1-1
+    done=True
+    clave='\\left('
+    qc=len(clave)
+    while done:
+        p2=p2-1
+        var=sexpr[p2]
+        if sexpr[p2:p2+qc]==clave:
+            done=False
+            sres=sexpr[p2+qc:p1]
+    kres1=sres
+    oldsin='\\left('+ kres1+'\\right)^{\\frac{1}{'+kres2+'}}'
+    newsin='\\sqrt['+kres2+']{'+kres1+' }'
+    sexpr=sexpr.replace(oldsin,newsin)
+    if '\\right)^{- \\frac{1}{' in sexpr or '\\right)^{\\frac{1}{' in sexpr:
+        return getlatexroot(sexpr)
+    else:    
+        return sexpr  
+    
+def displayvroot(expr):
+    sexpr=latex(expr)
+    display(Math(getlatexroot(sexpr)))    
+
+def sacafactor(expr,factor):
+    dd=denom(expr)
+    nn=numer(expr)
+    nexpr=simplify(expr/factor)
+    dd2=denom(nexpr)
+    nn2=numer(nexpr)
+    if Is_Div(factor):
+        if nn2==nn:
+            return nexpr 
+        else:
+            return expr
+    else:
+        if dd2==dd:
+            return nexpr 
+        else:
+            return expr
+
+def secfactor(expr,factor):
+    if Is_Mul(expr):
+        if sacafactor(expr,factor)!=expr:
+            return smul(factor,sacafactor(expr,factor))
+        else:
+            return expr
+    if Is_Div(expr):
+        p1=numer(expr)
+        p2=denom(expr)
+        return Div(secfactor(p1,factor),secfactor(p2,factor))
+    elif Is_Add(expr):
+        p1=0
+        p2=0
+        mm=expr.args
+        for data in mm:
+            nfac=sacafactor(data,factor)
+            if nfac!=data:
+                p2=p2+nfac
+            else:
+                p1=p1+data
+        if p1==0:        
+            return Mul(factor,p2,evaluate=False)
+        else:
+            return Add(p1,Mul(factor,p2,evaluate=False),evaluate=False)
+    else:
+        return expr    
+        
+def mathinsidepar(expr,spar,evaluate=True):
+    sres=insidepar(expr,spar)
+    if evaluate:
+        return parse_expr(sres)
+    else:
+        return parse_expr(sres,evaluate=False)
+def insidepar(expr,spar):
+    sexpr=str(expr) 
+    p1=sexpr.find(spar)
+    if not '(' in spar:
+        done=True
+        p1=sexpr.find(spar) 
+         
+        p2=p1 
+         
+        while done:
+            if sexpr[p2]=='(':
+                done=False
+                p2+=1
+                break
+            else:
+                p2+=1
+         
+    else:
+        if spar[-1]!='(':
+            done=True
+            p2=p1+len(spar)
+            p2=p2-1
+            while done:
+                if sexpr[p2]=='(':
+                    done=False
+                    p2=p2+1
+                    break
+                else:
+                    p2=p2-1
+        else:
+            p2=p1+len(spar) 
+        
+    done=True
+    cc=1
+    p3=p2
+    while done:
+        if sexpr[p3]=='(':
+            cc=cc+1
+        elif  sexpr[p3]==')':
+            cc=cc-1
+        else:
+            pass
+        if cc==0:
+            return sexpr[p2-1:p3+1]
+            done=False
+            break
+        p3+=1 
+
+def divisorlist(n):
+    return divisors(n)
+    
+from IPython.display import clear_output
+ 
+  
+  
+def mcm(expr):
+    return divisors(expr)[1]  
+    
+    
+def showclass():
+    '''
+    class MyClass:
+        def __init__(self, *args):
+            self.expr=args[0]
+            ...
+            
+        def __call__(self,*args):
+            return self.expr
+   
+        def __repr__(self):             
+            return str(self.expr)
+        
+        def _latex(self, obj):
+            return latex(self.expr) 
+            
+        def __str__(self):
+            return str(self.__repr__())
+    '''
+    pass    
+    
+def multitask(expr,*args):
+    '''
+    multitask(expr,'simplify','expand','factor')
+    '''
+    if 'expand' in args:
+        expr=expand(expr)
+    if 'factor' in args:
+        expr=factor(expr)
+    if 'simplify' in args:
+        expr=simplify(expr)
+    if 'rsimplify' in args:
+        expr=rsimplify(expr)
+    if 'tsimplify' in args:
+        expr=tsimplify(expr)    
+    return expr    
+    
+def mulupdown(expr,kmul,*args):
+    '''
+    mulupdown(p1/p2,factor,'simplify',factor',expand')
+
+    return simplify(fact..(p1*factor)) / simplify(fact..(p2*factor))
+    '''
+    p1=multitask(numer(expr)*kmul,*args)
+    p2=multitask(denom(expr)*kmul,*args)
+
+    return Div(p1,p2)     
+    
+def inversa(func, var, nueva_var):
+    """
+    Calcula la función inversa de una expresión simbólica.
+
+    Parámetros:
+    -----------
+    func : Expr
+        La función simbólica que se desea invertir, escrita en términos de `var`.
+    var : Symbol
+        La variable independiente de la función original.
+    nueva_var : Symbol
+        La variable que tomará el lugar del valor de salida de la función (es decir, `f(x) = y` se convierte en `x = f⁻¹(y)`).
+
+    Retorna:
+    --------
+    list
+        Una lista con las soluciones simbólicas que representan la función inversa (puede haber más de una).
+
+    Ejemplo:
+    --------
+    >>> from sympy import symbols
+    >>> x, y = symbols('x y')
+    >>> inversa(x**2 + 1, x, y)
+    [sqrt(y - 1), -sqrt(y - 1)]
+    """
+    from sympy import Eq, solve
+    return solve(Eq(nueva_var, func), var)
+    
+    
+    
+def finversa(func, var, nueva_var):
+    """
+    Calcula la función inversa de una expresión simbólica.
+
+    Parámetros:
+    -----------
+    func : Expr
+        La función simbólica que se desea invertir, escrita en términos de `var`.
+    var : Symbol
+        La variable independiente de la función original.
+    nueva_var : Symbol
+        La variable que tomará el lugar del valor de salida de la función (es decir, `f(x) = y` se convierte en `x = f⁻¹(y)`).
+
+    Retorna:
+    --------
+    list
+        Una lista con las soluciones simbólicas que representan la función inversa (puede haber más de una).
+
+    Ejemplo:
+    --------
+    >>> from sympy import symbols
+    >>> x, y = symbols('x y')
+    >>> inversa(x**2 + 1, x, y)
+    [sqrt(y - 1), -sqrt(y - 1)]
+    """
+    from sympy import Eq, solve
+    return solve(Eq(nueva_var, func), var)
+        
+        
+
+
+def joinnumber(*args):
+    # joinnumber(1,2,3)=123
+    return int(''.join(map(str, args)))            
+    
+def DD(numb):
+    return divisors(numb)
+def DDn(numb):
+    return len( divisors(numb))   
+def expandfact(x, n):
+    return expandfac(x, n)
+    
+def expandfac(x, n):
+    '''
+    https://github.com/aldotb aldotb@gmail.com
+    Expands a factorial expression into a product of descending terms followed by a residual factorial.
+    
+    Parameters:
+        x : number, symbol, or factorial expression
+            Input expression to expand. Can be:
+            - A number or symbol (treated as factorial argument)
+            - A factorial expression (x!)
+        n : int or symbolic expression
+            Expansion control parameter:
+            - If integer: number of terms to expand
+            - If expression: dynamically calculates terms to expand
+    
+    Returns:
+        Expr: The expanded product with:
+              - n descending terms
+              - A residual factorial term
+    
+    Examples:
+        Basic monomial expansion:
+        >>> expandfac(x, 3)
+        x*(x-1)*(x-2)*factorial(x-2)
+        
+        >>> expandfac(5*x, 2)
+        (5*x)*(5*x-1)*factorial(5*x-1)
+        
+        Polynomial expansion:
+        >>> expandfac(x-2, 3)
+        (x-2)*(x-3)*(x-4)*factorial(x-4)
+        
+        Symbolic term calculation:
+        >>> expandfac(x+1, x-2)
+        (x+1)*x*(x-1)*factorial(x-1)
+        
+        Factorial input handling:
+        >>> expandfac(factorial(x+1), x-2)
+        (x+1)*x*(x-1)*factorial(x-1)
+    
+    Behavior:
+        1. For factorial inputs (x!), first extracts the argument
+        2. When n is numeric:
+           - Generates n descending terms
+           - Appends factorial of next term
+        3. When n is symbolic:
+           - Computes difference between expressions
+           - Uses result as term count
+        4. Maintains unevaluated symbolic form
+    
+    Implementation Notes:
+        - Residual factorial always has form (x-(n-1))!
+        - Handles polynomial expansion completely
+        - Preserves expression structure without evaluation
+        - Recursively processes nested factorials
+    
+    See Also:
+        factorial: The standard factorial function
+        expand: General expression expansion
+        https://github.com/aldotb
+        aldotb@gmail.com
+    '''
+    # [Function implementation remains exactly the same]
+    if type(x)==factorial:
+        (x,)=x.args
+        return expandfac(x,n)
+    else:
+        if Is_Number(n):
+            if type(x)==factorial:
+                (kk,)=x.args
+                k=str(kk)
+            else:    
+                k=str(x)
+            p2=')*('
+            sres='('+k
+            for cc in range(1,n-1):
+                newexpr=x-cc
+                sres=sres+p2+str(newexpr)
+            sres=sres+')'
+            sres=sres+'*'+str(factorial(x-n+1))
+            return parse_expr(sres,evaluate=False)
+        else:
+            p2,var=n.args
+            if len(x.args)==0:
+                p1=0
+            else:
+                p1,var2=x.args
+            n=p1-p2
+            return expandfac(x,n+1)
+
+
+def expandfact(x,n):
+    return parse_expr(str(expandfac(fac(x),n)).replace(' 1*','')) 
+    
+def binomialfact(x,y):
+    return cfrac(fac(x),fac(y)*fac(x-y))
+
+def reducefact(expr,nn):
+    '''
+    input( fact(a-b),c):
+    return (a-b)*(a-b-1)....*fac(a-c)
+    '''
+    if Is_Add(expr):
+        kres=0
+        for data in expr.args:
+            kres=kres+reducefact(data,nn)
+        return kres
+    elif Is_Div(expr):
+        return cf(reducefact(numer(expr),nn),reducefact(denom(expr),nn))
+    elif Is_Mul(expr):
+            mm=expr.args 
+            kres= reducefact(mm[0],nn)
+            for data in mm[1::]:
+                kres=kres*reducefact(data,nn)
+            return kres
+    elif type(expr)==factorial:
+        (data,)=expr.args
+        obj1=0
+        for obj in data.args:
+            if Is_Number(obj):
+                obj1=obj
+                break
+                
+        if obj1>nn:
+            lim=obj1-nn
+            return expandfact(expr,lim+1)
+        else:
+            return expr
+    else:
+        return expr
+def simplifyfact(expr):
+    
+    if Is_Div(expr):
+        p1=numer(numer(expr))*denom(denom(expr))
+        p2=numer(denom(expr))*denom(numer(expr))
+        vec1=[]
+        vec2=[]
+        data1=p1.args
+        data2=p2.args
+        sexp1=str(p1).replace(' 1*',' ')
+        sexp2=str(p2).replace(' 1*',' ')
+        for data in data1:
+            if not str(data) in sexp2:
+                vec1.append(data)
+        for data in data2:
+            if not str(data) in sexp1:
+                vec2.append(data)
+        if vec1==[]:
+            vec1=[1]
+        if vec2==[]:
+            vec2=[1]            
+        
+        k1=prod(vec1) 
+        k2=prod(vec2)
+        k=cf(k1,k2)
+        kres= parse_expr(str(k).replace(' 1*',' '))
+        return kres
+    else:
+        return parse_expr(str(expr).replace(' 1*',' '))    
+def selectexpand(expr,sexpand):
+    '''
+    https://github.com/aldotb aldotb@gmail.com
+    Expands all termns in expr without expanding the expression sexpand
+    
+    Parameters:
+        expr :polynomie  math  expression 
+        n : polynomie  math  expression that not will be expanded
+ 
+    
+    Returns:
+        Expr: polynomie  math  expression 
+ 
+    
+    Examples:
+        >>> selectexpand((x+1)*(x-1), x-1)
+        x*(x-1)*(x-1) 
+        >>> selectexpand((x - 3)*(x**3 - 6*x**2 + 9*x - 3)*factorial(x - 5),(x-3))
+        x*(x**3 - 6*x**2 + 9*x - 3)*factorial(x - 5) - 3*(x**3 - 6*x**2 + 9*x - 3)*factorial(x - 5)    
+  
+        https://github.com/aldotb
+        aldotb@gmail.com
+    '''
+    p=expr/sexpand
+    k=symbols('k')
+    p2=expr.subs(p,k)
+    p3=p2.expand()
+    p4=p3.subs(k,p)
+    return p4               
+    
+def rmode(expr,p):
+    '''
+    https://github.com/aldotb aldotb@gmail.com
+    return parcial precediment expr%p
+    
+    Parameters:
+        expr :polynomie  math  expression 
+        n : polynomie  math  expression  
+ 
+    
+    Returns:
+        Expr: polynomie  math  expression 
+ 
+    
+    Examples:
+        >>> rmod(3*x,y)
+        3*x
+        >>> rmod(3*x,x)
+        0    
+        >>> rmod(3*x+3,x)
+        3      
+        https://github.com/aldotb
+        aldotb@gmail.com
+    '''    
+    if Is_Add(expr):
+        kres=0
+        for data in expr.args:
+            kres=kres+rmode(data,p)
+        return kres
+    else:
+        if Is_Factor(expr,p):
+            return  0
+        else:
+            return expr
+                
+def timestart():
+    # see finishtime
+    return time.time()
+def starttime(): 
+    return time.time()
+    
+def endtime(t):
+    return time.time()-t  
+    
+def finishtime(t):
+    return time.time()-t 
+    
+
+
+from sympy import log
+
+def lexpand(expr):
+    if Is_Log(expr):
+        (arg,) = expr.args
+        
+        if Is_Pow(arg):
+            base, expo = arg.args
+            return expo * log(base)
+
+    return expr 
+        
+def lmul2lpow(expr):
+    if Is_Add(expr):
+        kres=0
+        for i in fpoly(expr,'list'):
+            kres=kres+lmul2pow(expr)
+        return kres
+    elif Is_Div(expr):
+        p1,p2=fraction(expr)
+        p1=lmul2pow(p1)
+        p2=lmul2pow(p2)
+        return cfrac(p1,p2)
+    elif Is_Mul(expr):
+        
+        if 'log' in str(expr):
+            ee=1
+            vlog=1
+            for i in fpoly(expr,'list'):
+            
+                if type(i)==log:
+                    vlog=i.args[0]
+                else:
+                    ee=ee*i
+            vlog=vlog**ee        
+            return log(vlog)       
+    else:
+        return expr
+        
+ 
+
+def lfactor(expr,joinBase=False):
+    if Is_Number(expr):
+        return expr
+    elif Is_Symbols(expr):
+        return expr
+    elif Is_Add(expr):
+        mm=expr.args
+        return sum([lfactor(data) for data in mm])
+    elif Is_Div(expr):
+        p1=lfactor(numer(expr))
+        p2=lfactor(denom(expr))
+        return sdiv(p1,p2)
+
+    elif Is_Mul(expr):
+         
+        mm=expr.args
+        return prod([lfactor(data) for data in mm])
+    elif Is_Root(expr):
+        rr=getroot(expr)
+        return expr.subs(rr,lfactor(rr))
+    elif type(expr)==log:
+        (rlog,)=expr.args
+        kres=factor(rlog)
+        if joinBase:
+            kres=joinbase(kres)
+        return log(kres)
+    else:
+        return expr        
+        
+def lexponent(expr):
+    if Is_Number(expr) or Is_symbols(expr):
+        return expr
+    elif type(expr)==log:
+        (larg,)=expr.args
+        if Is_Pow(larg):
+            bb=getbase(larg)
+            ee=getexpo(larg)
+            return ee*log(bb)
+        else:
+            return expr
+    elif type(expr)==Add:
+        return sum([lexponent(data) for data in expr.args])
+    elif Is_Div(expr):
+        p1,p2=fraction(expr)
+        P1=lexponent(p1)
+        P2=lexponent(p2)
+        return sdiv(P1,P2)    
+    elif Is_Mul(expr):
+        return prod([lexponent(data) for data in expr.args])
+        
+    else:
+        return expr        
+
+def lcombine(expr):
+    if Is_Mul(expr):
+        coeff = 1
+        logs = []
+
+        for a in expr.args:
+            if Is_Log(a):
+                logs.append(a)
+            else:
+                coeff *= a
+
+        # solo 1 log → combinar
+        if len(logs) == 1:
+            (arg,) = logs[0].args
+            return log(arg**coeff)
+
+    return expr
+
+def simplify2(expr):
+    ndone=False
+    kres = expr**2
+    kres=simplify(kres)
+    if signo(kres)==-1:
+        return -1*sqrt(-1*kres)
+    else:    
+        return sqrt(kres)    
